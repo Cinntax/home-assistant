@@ -17,7 +17,8 @@ from homeassistant.const import (
     SERVICE_VOLUME_UP, SERVICE_VOLUME_DOWN, SERVICE_VOLUME_SET,
     SERVICE_VOLUME_MUTE, SERVICE_TOGGLE,
     SERVICE_MEDIA_PLAY_PAUSE, SERVICE_MEDIA_PLAY, SERVICE_MEDIA_PAUSE,
-    SERVICE_MEDIA_NEXT_TRACK, SERVICE_MEDIA_PREVIOUS_TRACK, SERVICE_MEDIA_SEEK)
+    SERVICE_MEDIA_NEXT_TRACK, SERVICE_MEDIA_PREVIOUS_TRACK, SERVICE_MEDIA_SEEK,
+    SERVICE_MEDIA_RANDOM, SERVICE_MEDIA_REPEAT)
 
 DOMAIN = 'media_player'
 SCAN_INTERVAL = 10
@@ -49,6 +50,8 @@ ATTR_MEDIA_SEASON = 'media_season'
 ATTR_MEDIA_EPISODE = 'media_episode'
 ATTR_MEDIA_CHANNEL = 'media_channel'
 ATTR_MEDIA_PLAYLIST = 'media_playlist'
+ATTR_MEDIA_RANDOM = 'random'
+ATTR_MEDIA_REPEAT = 'repeat'
 ATTR_APP_ID = 'app_id'
 ATTR_APP_NAME = 'app_name'
 ATTR_SUPPORTED_MEDIA_COMMANDS = 'supported_media_commands'
@@ -71,6 +74,8 @@ SUPPORT_TURN_ON = 128
 SUPPORT_TURN_OFF = 256
 SUPPORT_PLAY_MEDIA = 512
 SUPPORT_VOLUME_STEP = 1024
+SUPPORT_RANDOM = 2048 
+SUPPORT_REPEAT = 4096 
 
 SERVICE_TO_METHOD = {
     SERVICE_TURN_ON: 'turn_on',
@@ -84,6 +89,8 @@ SERVICE_TO_METHOD = {
     SERVICE_MEDIA_NEXT_TRACK: 'media_next_track',
     SERVICE_MEDIA_PREVIOUS_TRACK: 'media_previous_track',
     SERVICE_PLAY_MEDIA: 'play_media',
+    SERVICE_RANDOM: 'set_random',
+    SERVICE_REPEAT: 'set_repeat',
 }
 
 ATTR_TO_PROPERTY = [
@@ -102,11 +109,15 @@ ATTR_TO_PROPERTY = [
     ATTR_MEDIA_EPISODE,
     ATTR_MEDIA_CHANNEL,
     ATTR_MEDIA_PLAYLIST,
+    ATTR_MEDIA_RANDOM,
+    ATTR_MEDIA_REPEAT,
     ATTR_APP_ID,
     ATTR_APP_NAME,
     ATTR_SUPPORTED_MEDIA_COMMANDS,
 ]
 
+_LOGGER = logging.getLogger(__name__)
+MISSING_PARAM_ERR = "Expected parameter not found. Expected {0}. Service aborted."
 
 def is_on(hass, entity_id=None):
     """
@@ -216,6 +227,17 @@ def play_media(hass, media_type, media_id, entity_id=None):
 
     hass.services.call(DOMAIN, SERVICE_PLAY_MEDIA, data)
 
+def set_random(hass, random, entity_id=None):
+    """Send the media player the command to set/clear random mode."""
+    data = {ATTR_ENTITY_ID: entity_id} if entity_id else {}
+    data[ATTR_MEDIA_RANDOM] = random
+    hass.services.call(DOMAIN, SERVICE_MEDIA_RANDOM, data)
+
+def set_repeat(hass, repeat, entity_id=None):
+    """Send the media player the command to set the repeat mode."""
+    data = {ATTR_ENTITY_ID: entity_id} if entity_id else {}
+    data[ATTR_MEDIA_REPEAT] = repeat
+    hass.services.call(DOMAIN, SERVICE_MEDIA_REPEAT, data)
 
 def setup(hass, config):
     """Track states and offer events for media_players."""
@@ -249,6 +271,8 @@ def setup(hass, config):
         target_players = component.extract_from_service(service)
 
         if ATTR_MEDIA_VOLUME_LEVEL not in service.data:
+            _LOGGER.error(str.format(MISSING_PARAM_ERR,
+                                     ATTR_MEDIA_VOLUME_LEVEL))
             return
 
         volume = service.data[ATTR_MEDIA_VOLUME_LEVEL]
@@ -267,6 +291,8 @@ def setup(hass, config):
         target_players = component.extract_from_service(service)
 
         if ATTR_MEDIA_VOLUME_MUTED not in service.data:
+            _LOGGER.error(str.format(MISSING_PARAM_ERR,
+                                     ATTR_MEDIA_VOLUME_MUTED))
             return
 
         mute = service.data[ATTR_MEDIA_VOLUME_MUTED]
@@ -285,6 +311,8 @@ def setup(hass, config):
         target_players = component.extract_from_service(service)
 
         if ATTR_MEDIA_SEEK_POSITION not in service.data:
+            _LOGGER.error(str.format(MISSING_PARAM_ERR,
+                                     ATTR_MEDIA_SEEK_POSITION))
             return
 
         position = service.data[ATTR_MEDIA_SEEK_POSITION]
@@ -304,9 +332,13 @@ def setup(hass, config):
         media_id = service.data.get(ATTR_MEDIA_CONTENT_ID)
 
         if media_type is None:
+            _LOGGER.error(str.format(MISSING_PARAM_ERR,
+                                     ATTR_MEDIA_CONTENT_TYPE))
             return
 
         if media_id is None:
+            _LOGGER.error(str.format(MISSING_PARAM_ERR,
+                                     ATTR_MEDIA_CONTENT_ID))
             return
 
         for player in component.extract_from_service(service):
@@ -318,6 +350,46 @@ def setup(hass, config):
     hass.services.register(
         DOMAIN, SERVICE_PLAY_MEDIA, play_media_service,
         descriptions.get(SERVICE_PLAY_MEDIA))
+
+    def media_random_service(service):
+        """Set random status"""
+        target_players = component.extract_from_service(service)
+
+        if ATTR_MEDIA_RANDOM not in service.data:
+            _LOGGER.error(str.format(MISSING_PARAM_ERR,
+                                     ATTR_MEDIA_RANDOM))
+            return
+
+        random = service.data[ATTR_MEDIA_RANDOM]
+
+        for player in target_players:
+            player.set_random(random)
+
+            if player.should_poll:
+                player.update_ha_state(True)
+
+    hass.services.register(DOMAIN, SERVICE_MEDIA_RANDOM, media_random_service,
+                           descriptions.get(SERVICE_MEDIA_RANDOM))
+
+    def media_repeat_service(service):
+        """Sets the repeat mode of the player"""
+        target_players = component.extract_from_service(service)
+
+        if ATTR_MEDIA_REPEAT not in service.data:
+            _LOGGER.error(str.format(MISSING_PARAM_ERR,
+                                     ATTR_MEDIA_REPEAT))
+            return
+
+        repeat = service.data[ATTR_MEDIA_REPEAT]
+
+        for player in target_players:
+            player.set_repeat(repeat)
+
+            if player.should_poll:
+                player.update_ha_state(True)
+
+    hass.services.register(DOMAIN, SERVICE_MEDIA_REPEAT, media_repeat_service,
+                           descriptions.get(SERVICE_MEDIA_REPEAT))
 
     return True
 
@@ -415,6 +487,16 @@ class MediaPlayerDevice(Entity):
         return None
 
     @property
+    def random(self):
+        """The random mode of the player."""
+        return None
+
+    @property
+    def repeat(self):
+        """The repeat mode of the player."""
+        return None 
+
+    @property
     def app_id(self):
         """ID of the current running app."""
         return None
@@ -443,6 +525,14 @@ class MediaPlayerDevice(Entity):
 
     def set_volume_level(self, volume):
         """Set volume level, range 0..1."""
+        raise NotImplementedError()
+   
+    def set_repeat(self, repeat):
+        """Set the repeat mode of the player"""
+        raise NotImplementedError()
+
+    def set_random(self, random):
+        """Set the random mode of the player"""
         raise NotImplementedError()
 
     def media_play(self):
@@ -504,6 +594,16 @@ class MediaPlayerDevice(Entity):
     def support_play_media(self):
         """Boolean if play media command supported."""
         return bool(self.supported_media_commands & SUPPORT_PLAY_MEDIA)
+
+    @property
+    def support_random(self):
+        """Boolean if media random command supported."""
+        return bool(self.supported_media_commands & SUPPORT_RANDOM)
+
+    @property
+    def support_repeat(self):
+        """Boolean if media repeat command supported."""
+        return bool(self.supported_media_commands & SUPPORT_REPEAT)
 
     def toggle(self):
         """Toggle the power on the media player."""

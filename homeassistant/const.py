@@ -150,6 +150,8 @@ SERVICE_MEDIA_PAUSE = "media_pause"
 SERVICE_MEDIA_NEXT_TRACK = "media_next_track"
 SERVICE_MEDIA_PREVIOUS_TRACK = "media_previous_track"
 SERVICE_MEDIA_SEEK = "media_seek"
+SERVICE_MEDIA_RANDOM = "media_set_random"
+SERVICE_MEDIA_REPEAT = "media_set_repeat"
 
 SERVICE_ALARM_DISARM = "alarm_disarm"
 SERVICE_ALARM_ARM_HOME = "alarm_arm_home"

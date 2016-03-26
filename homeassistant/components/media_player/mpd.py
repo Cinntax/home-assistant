@@ -10,14 +10,16 @@ import socket
 from homeassistant.components.media_player import (
     MEDIA_TYPE_MUSIC, SUPPORT_NEXT_TRACK, SUPPORT_PAUSE,
     SUPPORT_PREVIOUS_TRACK, SUPPORT_TURN_OFF, SUPPORT_TURN_ON,
-    SUPPORT_VOLUME_SET, MediaPlayerDevice)
+    SUPPORT_VOLUME_SET, SUPPORT_PLAY_MEDIA,
+    MEDIA_TYPE_PLAYLIST, MediaPlayerDevice)
 from homeassistant.const import STATE_OFF, STATE_PAUSED, STATE_PLAYING
 
 _LOGGER = logging.getLogger(__name__)
 REQUIREMENTS = ['python-mpd2==0.5.4']
 
 SUPPORT_MPD = SUPPORT_PAUSE | SUPPORT_VOLUME_SET | SUPPORT_TURN_OFF | \
-    SUPPORT_TURN_ON | SUPPORT_PREVIOUS_TRACK | SUPPORT_NEXT_TRACK
+    SUPPORT_TURN_ON | SUPPORT_PREVIOUS_TRACK | SUPPORT_NEXT_TRACK | \
+    SUPPORT_PLAY_MEDIA
 
 
 # pylint: disable=unused-argument
@@ -203,3 +205,17 @@ class MpdDevice(MediaPlayerDevice):
     def media_previous_track(self):
         """Service to send the MPD the command for previous track."""
         self.client.previous()
+
+    def play_media(self, media_type, media_id):
+        """Send the media player the command for playing a playlist."""
+        _LOGGER.info(str.format("Playing playlist: {0}", media_id))
+        if media_type == MEDIA_TYPE_PLAYLIST:
+
+            """Clear whatever is playing now."""
+            self.client.clear()
+
+            """Load the playlist"""
+            self.client.load(media_id)
+            self.client.play()
+        else:
+            _LOGGER.error(str.format("Invalid media type. Expected: {0}", MEDIA_TYPE_PLAYLIST))
