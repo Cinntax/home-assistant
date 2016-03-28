@@ -29,7 +29,6 @@ DISCOVERY_PLATFORMS = {
     discovery.SERVICE_CAST: 'cast',
     discovery.SERVICE_SONOS: 'sonos',
     discovery.SERVICE_PLEX: 'plex',
-    discovery.SERVICE_SQUEEZEBOX: 'squeezebox',
 }
 
 SERVICE_PLAY_MEDIA = 'play_media'
@@ -50,8 +49,8 @@ ATTR_MEDIA_SEASON = 'media_season'
 ATTR_MEDIA_EPISODE = 'media_episode'
 ATTR_MEDIA_CHANNEL = 'media_channel'
 ATTR_MEDIA_PLAYLIST = 'media_playlist'
-ATTR_MEDIA_RANDOM = 'random'
-ATTR_MEDIA_REPEAT = 'repeat'
+ATTR_MEDIA_RANDOM = 'media_random'
+ATTR_MEDIA_REPEAT = 'media_repeat'
 ATTR_APP_ID = 'app_id'
 ATTR_APP_NAME = 'app_name'
 ATTR_SUPPORTED_MEDIA_COMMANDS = 'supported_media_commands'
@@ -89,8 +88,8 @@ SERVICE_TO_METHOD = {
     SERVICE_MEDIA_NEXT_TRACK: 'media_next_track',
     SERVICE_MEDIA_PREVIOUS_TRACK: 'media_previous_track',
     SERVICE_PLAY_MEDIA: 'play_media',
-    SERVICE_RANDOM: 'set_random',
-    SERVICE_REPEAT: 'set_repeat',
+    SERVICE_MEDIA_RANDOM: 'media_set_random',
+    SERVICE_MEDIA_REPEAT: 'media_set_repeat',
 }
 
 ATTR_TO_PROPERTY = [
@@ -227,14 +226,14 @@ def play_media(hass, media_type, media_id, entity_id=None):
 
     hass.services.call(DOMAIN, SERVICE_PLAY_MEDIA, data)
 
-def set_random(hass, random, entity_id=None):
+def media_set_random(hass, random, entity_id=None):
     """Send the media player the command to set/clear random mode."""
     data = {ATTR_ENTITY_ID: entity_id} if entity_id else {}
     data[ATTR_MEDIA_RANDOM] = random
     hass.services.call(DOMAIN, SERVICE_MEDIA_RANDOM, data)
 
-def set_repeat(hass, repeat, entity_id=None):
-    """Send the media player the command to set the repeat mode."""
+def media_set_repeat(hass, repeat, entity_id=None):
+    """Send the media player the command to set/clear the repeat mode."""
     data = {ATTR_ENTITY_ID: entity_id} if entity_id else {}
     data[ATTR_MEDIA_REPEAT] = repeat
     hass.services.call(DOMAIN, SERVICE_MEDIA_REPEAT, data)
@@ -352,7 +351,7 @@ def setup(hass, config):
         descriptions.get(SERVICE_PLAY_MEDIA))
 
     def media_random_service(service):
-        """Set random status"""
+        """Set random status of the player"""
         target_players = component.extract_from_service(service)
 
         if ATTR_MEDIA_RANDOM not in service.data:
@@ -363,7 +362,7 @@ def setup(hass, config):
         random = service.data[ATTR_MEDIA_RANDOM]
 
         for player in target_players:
-            player.set_random(random)
+            player.media_set_random(random)
 
             if player.should_poll:
                 player.update_ha_state(True)
@@ -383,7 +382,7 @@ def setup(hass, config):
         repeat = service.data[ATTR_MEDIA_REPEAT]
 
         for player in target_players:
-            player.set_repeat(repeat)
+            player.media_set_repeat(repeat)
 
             if player.should_poll:
                 player.update_ha_state(True)
@@ -487,12 +486,12 @@ class MediaPlayerDevice(Entity):
         return None
 
     @property
-    def random(self):
+    def media_random(self):
         """The random mode of the player."""
         return None
 
     @property
-    def repeat(self):
+    def media_repeat(self):
         """The repeat mode of the player."""
         return None 
 
@@ -527,11 +526,11 @@ class MediaPlayerDevice(Entity):
         """Set volume level, range 0..1."""
         raise NotImplementedError()
    
-    def set_repeat(self, repeat):
+    def media_set_repeat(self, repeat):
         """Set the repeat mode of the player"""
         raise NotImplementedError()
 
-    def set_random(self, random):
+    def media_set_random(self, random):
         """Set the random mode of the player"""
         raise NotImplementedError()
 

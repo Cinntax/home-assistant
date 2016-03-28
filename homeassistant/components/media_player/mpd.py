@@ -10,8 +10,8 @@ import socket
 from homeassistant.components.media_player import (
     MEDIA_TYPE_MUSIC, SUPPORT_NEXT_TRACK, SUPPORT_PAUSE,
     SUPPORT_PREVIOUS_TRACK, SUPPORT_TURN_OFF, SUPPORT_TURN_ON,
-    SUPPORT_VOLUME_SET, SUPPORT_PLAY_MEDIA,
-    MEDIA_TYPE_PLAYLIST, MediaPlayerDevice)
+    SUPPORT_VOLUME_SET, SUPPORT_PLAY_MEDIA, SUPPORT_RANDOM,
+    SUPPORT_REPEAT, MEDIA_TYPE_PLAYLIST, MediaPlayerDevice)
 from homeassistant.const import STATE_OFF, STATE_PAUSED, STATE_PLAYING
 
 _LOGGER = logging.getLogger(__name__)
@@ -19,7 +19,7 @@ REQUIREMENTS = ['python-mpd2==0.5.4']
 
 SUPPORT_MPD = SUPPORT_PAUSE | SUPPORT_VOLUME_SET | SUPPORT_TURN_OFF | \
     SUPPORT_TURN_ON | SUPPORT_PREVIOUS_TRACK | SUPPORT_NEXT_TRACK | \
-    SUPPORT_PLAY_MEDIA
+    SUPPORT_PLAY_MEDIA | SUPPORT_REPEAT | SUPPORT_RANDOM
 
 
 # pylint: disable=unused-argument
@@ -160,6 +160,16 @@ class MpdDevice(MediaPlayerDevice):
         return int(self.status['volume'])/100
 
     @property
+    def media_random(self):
+        """The random mode of the player."""
+        return self.status['random'] == 1
+
+    @property
+    def media_repeat(self):
+        """The repeat mode of the player."""
+        return self.status['repeat'] == 1 
+
+    @property
     def supported_media_commands(self):
         """Flag of media commands that are supported."""
         return SUPPORT_MPD
@@ -219,3 +229,16 @@ class MpdDevice(MediaPlayerDevice):
             self.client.play()
         else:
             _LOGGER.error(str.format("Invalid media type. Expected: {0}", MEDIA_TYPE_PLAYLIST))
+
+    def media_set_repeat(self, repeat):
+        """Set the repeat mode of the player"""
+        """MPD is expecting a 1 or 0- not on/off"""
+        _LOGGER.info(str.format("Putting MPD in repeat all mode: {0}", repeat))
+        self.client.single(0)
+        self.client.repeat(int(repeat))
+
+    def media_set_random(self, random):
+        """Set the random mode of the player"""
+        """MPD is expecting a 1 or 0 number."""
+        _LOGGER.info(str.format("Putting MPD in random mode: {0}", random))
+        self.client.random(int(random))
